@@ -1,5 +1,7 @@
 use anyhow::Result;
 use dspy_rs::*;
+use std::io::{self, Write};
+use std::env;
 
 // Mock search function - always returns the same result
 async fn search_web(_query: &str) -> String {
@@ -101,35 +103,68 @@ async fn main() -> Result<()> {
     // Create the search agent module
     let agent = SearchAgent::new();
 
-    // Test with a question that requires search (current information)
+    // Parse command-line arguments
+    let args: Vec<String> = env::args().collect();
+
+    // Check for -p flag with a question
+    if args.len() >= 3 && args[1] == "-p" {
+        let question = &args[2];
+
+        let example = example! {
+            "question": "input" => question,
+        };
+
+        let result = agent.forward(example).await?;
+        println!("{}", result.get("answer", None).as_str().unwrap());
+
+        return Ok(());
+    }
+
+    // Interactive mode
+    println!("🤖 Search Agent Chat CLI");
+    println!("Type your questions below (Ctrl+C to exit)\n");
     println!("{}", "=".repeat(60));
-    println!("Question 1: Who is the current US president?");
-    println!("{}", "=".repeat(60));
 
-    let example1 = example! {
-        "question": "input" => "Who is the current US president?",
-    };
+    loop {
+        print!("\n💬 You: ");
+        io::stdout().flush()?;
 
-    let result1 = agent.forward(example1).await?;
-    println!(
-        "Final Answer: {}\n",
-        result1.get("answer", None).as_str().unwrap()
-    );
+        let mut input = String::new();
+        match io::stdin().read_line(&mut input) {
+            Ok(0) => break, // EOF (Ctrl+D)
+            Ok(_) => {
+                let question = input.trim();
 
-    // Test with a question that doesn't require search (general knowledge)
-    println!("{}", "=".repeat(60));
-    println!("Question 2: What is 2+2?");
-    println!("{}", "=".repeat(60));
+                if question.is_empty() {
+                    continue;
+                }
 
-    let example2 = example! {
-        "question": "input" => "What is 2+2?",
-    };
+                if question.eq_ignore_ascii_case("exit") || question.eq_ignore_ascii_case("quit") {
+                    println!("\n👋 Goodbye!");
+                    break;
+                }
 
-    let result2 = agent.forward(example2).await?;
-    println!(
-        "Final Answer: {}",
-        result2.get("answer", None).as_str().unwrap()
-    );
+                let example = example! {
+                    "question": "input" => question,
+                };
+
+                match agent.forward(example).await {
+                    Ok(result) => {
+                        println!("\n🤖 Agent: {}\n", result.get("answer", None).as_str().unwrap());
+                        println!("{}", "=".repeat(60));
+                    }
+                    Err(e) => {
+                        eprintln!("\n❌ Error: {}\n", e);
+                        println!("{}", "=".repeat(60));
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("\n❌ Error reading input: {}", e);
+                break;
+            }
+        }
+    }
 
     Ok(())
 }
