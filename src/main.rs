@@ -13,6 +13,10 @@ struct InitialAnswer {
     /// Answer the question if you know the answer with certainty.
     /// If you don't know or need current information, respond with exactly "NEED_SEARCH".
     /// Provide answers directly without quotes.
+    /// Consider the conversation history when answering.
+
+    #[input]
+    pub conversation_history: String,
 
     #[input]
     pub question: String,
@@ -24,6 +28,10 @@ struct InitialAnswer {
 #[Signature]
 struct AnswerWithContext {
     /// Answer the question using the provided search results as context.
+    /// Consider the conversation history when answering.
+
+    #[input]
+    pub conversation_history: String,
 
     #[input]
     pub question: String,
@@ -52,6 +60,9 @@ impl SearchAgent {
 impl Module for SearchAgent {
     async fn forward(&self, inputs: Example) -> Result<Prediction> {
         let question = inputs.data.get("question").unwrap().clone();
+        let conversation_history = inputs.data.get("conversation_history")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| String::new());
 
         // Step 1: Try to answer directly
         println!("🤔 Attempting to answer directly...\n");
@@ -68,6 +79,7 @@ impl Module for SearchAgent {
 
             // Step 3: Answer with context
             let with_context = example! {
+                "conversation_history": "input" => conversation_history,
                 "question": "input" => question,
                 "search_results": "input" => search_results,
             };
@@ -111,6 +123,7 @@ async fn main() -> Result<()> {
         let question = &args[2];
 
         let example = example! {
+            "conversation_history": "input" => "",
             "question": "input" => question,
         };
 
@@ -124,6 +137,9 @@ async fn main() -> Result<()> {
     println!("🤖 Search Agent Chat CLI");
     println!("Type your questions below (Ctrl+C to exit)\n");
     println!("{}", "=".repeat(60));
+
+    // Maintain conversation history
+    let mut conversation_history = Vec::new();
 
     loop {
         print!("\n💬 You: ");
@@ -144,14 +160,27 @@ async fn main() -> Result<()> {
                     break;
                 }
 
+                // Format history as a simple string
+                let history_str = if conversation_history.is_empty() {
+                    String::new()
+                } else {
+                    conversation_history.join("\n")
+                };
+
                 let example = example! {
+                    "conversation_history": "input" => history_str,
                     "question": "input" => question,
                 };
 
                 match agent.forward(example).await {
                     Ok(result) => {
-                        println!("\n🤖 Agent: {}\n", result.get("answer", None).as_str().unwrap());
+                        let answer = result.get("answer", None).as_str().unwrap().to_string();
+                        println!("\n🤖 Agent: {}\n", answer);
                         println!("{}", "=".repeat(60));
+
+                        // Add to history
+                        conversation_history.push(format!("User: {}", question));
+                        conversation_history.push(format!("Assistant: {}", answer));
                     }
                     Err(e) => {
                         eprintln!("\n❌ Error: {}\n", e);
