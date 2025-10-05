@@ -26,6 +26,8 @@
             cargo
             rustfmt
             clippy
+            openssl
+            pkg-config
           ];
 
           shellHook = ''

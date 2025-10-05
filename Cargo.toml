@@ -1,6 +1,11 @@
 [package]
 name = "dspy-search"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
+dspy-rs = { path = "DSRs/crates/dspy-rs" }
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
