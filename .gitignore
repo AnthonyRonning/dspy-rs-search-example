@@ -1,0 +1,18 @@
+# Rust
+/target
+Cargo.lock
+
+# Nix
+result
+result-*
+
+# Editor
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
