@@ -1,0 +1,3 @@
+[submodule "DSRs"]
+	path = DSRs
+	url = git@github.com:krypticmouse/DSRs.git
